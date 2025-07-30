@@ -1,167 +1,43 @@
--- GUI Setup
-local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "FarmBossMenu"
-gui.ResetOnSpawn = false
+-- GUI local gui = Instance.new("ScreenGui", game.CoreGui) local toggleBtn = Instance.new("TextButton", gui) toggleBtn.Size = UDim2.new(0, 120, 0, 30) toggleBtn.Position = UDim2.new(0, 10, 0, 10) toggleBtn.Text = "[Bật] Fram Boss" toggleBtn.BackgroundColor3 = Color3.new(0.2, 0.8, 0.2) toggleBtn.TextColor3 = Color3.new(1, 1, 1)
 
-local toggleBtn = Instance.new("TextButton", gui)
-toggleBtn.Size = UDim2.new(0, 120, 0, 30)
-toggleBtn.Position = UDim2.new(0, 10, 0, 10)
-toggleBtn.Text = "Bật Farm"
-toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+local radiusBox = Instance.new("TextBox", gui) radiusBox.Size = UDim2.new(0, 120, 0, 30) radiusBox.Position = UDim2.new(0, 10, 0, 50) radiusBox.PlaceholderText = "Bán kính (vd: 15)"
 
-local radiusBox = Instance.new("TextBox", gui)
-radiusBox.Size = UDim2.new(0, 80, 0, 25)
-radiusBox.Position = UDim2.new(0, 10, 0, 50)
-radiusBox.PlaceholderText = "Tầm đánh"
-radiusBox.Text = "24"
+local speedBox = Instance.new("TextBox", gui) speedBox.Size = UDim2.new(0, 120, 0, 30) speedBox.Position = UDim2.new(0, 10, 0, 90) speedBox.PlaceholderText = "Tốc độ chạy (vd: 20)"
 
-local speedBox = Instance.new("TextBox", gui)
-speedBox.Size = UDim2.new(0, 80, 0, 25)
-speedBox.Position = UDim2.new(0, 100, 0, 50)
-speedBox.PlaceholderText = "Tốc độ"
-speedBox.Text = "3"
+-- Biến chính local run = false local Players = game:GetService("Players") local player = Players.LocalPlayer local char = player.Character or player.CharacterAdded:Wait() local hum = char:WaitForChild("Humanoid") local root = char:WaitForChild("HumanoidRootPart")
 
-local speedRunBtn = Instance.new("TextButton", gui)
-speedRunBtn.Size = UDim2.new(0, 120, 0, 25)
-speedRunBtn.Position = UDim2.new(0, 10, 0, 80)
-speedRunBtn.Text = "Bật SpeedRun"
-speedRunBtn.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
+-- Tìm mục tiêu gần nhất function getNearestTarget() local nearest, dist = nil, math.huge for _, v in pairs(workspace:GetDescendants()) do if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Name ~= player.Name then local d = (v.HumanoidRootPart.Position - root.Position).Magnitude if d < dist then dist = d nearest = v end end end return nearest end
 
-local hpText = Instance.new("TextLabel", gui)
-hpText.Size = UDim2.new(0, 200, 0, 25)
-hpText.Position = UDim2.new(0, 10, 0, 110)
-hpText.BackgroundTransparency = 1
-hpText.TextColor3 = Color3.fromRGB(255, 0, 0)
-hpText.TextScaled = true
-hpText.Text = "HP: N/A"
+-- Di chuyển tự nhiên quanh mục tiêu function moveAround(target, radius, speed) local angle = 0 while run and target and target:FindFirstChild("HumanoidRootPart") do local offset = Vector3.new(math.cos(angle), 0, math.sin(angle)) * radius local movePos = target.HumanoidRootPart.Position + offset hum:MoveTo(movePos)
 
--- Service
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
+-- Xoay mặt về mục tiêu
+    root.CFrame = CFrame.new(root.Position, target.HumanoidRootPart.Position)
 
--- Biến
-local enabled = false
-local radius = 24
-local speed = 3
-local angle = 0
-local speedRun = false
-local movingToTarget = false
+    angle = angle + math.rad(speed)
+    if angle > math.pi * 2 then angle = 0 end
 
--- Tìm mục tiêu gần nhất
-local function getNearestTarget()
-	local minDist = math.huge
-	local nearest = nil
-	for _, v in pairs(workspace:GetDescendants()) do
-		if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-			if v ~= LocalPlayer.Character then
-				local dist = (v.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
-				if dist < minDist then
-					minDist = dist
-					nearest = v
-				end
-			end
-		end
-	end
-	return nearest
+    wait(0.2)
 end
 
--- Auto Attack
-local function attack(target)
-	local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-	if tool then
-		tool:Activate()
-	end
 end
 
--- Noclip
-RunService.Stepped:Connect(function()
-	if enabled and LocalPlayer.Character then
-		for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanCollide = false
-			end
-		end
-	end
+-- Xử lý khi bấm nút local currentThread = nil toggleBtn.MouseButton1Click:Connect(function() run = not run toggleBtn.Text = run and "[Tắt] Fram Boss" or "[Bật] Fram Boss" toggleBtn.BackgroundColor3 = run and Color3.new(1, 0.4, 0.4) or Color3.new(0.2, 0.8, 0.2)
+
+if run then
+    local radius = tonumber(radiusBox.Text) or 15
+    local speed = tonumber(speedBox.Text) or 20
+    local target = getNearestTarget()
+    if target then
+        currentThread = coroutine.create(function()
+            moveAround(target, radius, speed)
+        end)
+        coroutine.resume(currentThread)
+    end
+else
+    if currentThread then
+        coroutine.close(currentThread)
+    end
+end
+
 end)
 
--- Hiển thị máu
-RunService.RenderStepped:Connect(function()
-	if not enabled then 
-		hpText.Text = "HP: N/A"
-		return 
-	end
-	local target = getNearestTarget()
-	if target and target:FindFirstChild("Humanoid") then
-		hpText.Text = "HP: " .. math.floor(target.Humanoid.Health) .. " / " .. math.floor(target.Humanoid.MaxHealth)
-	else
-		hpText.Text = "HP: N/A"
-	end
-end)
-
--- Di chuyển vòng quanh
-RunService.Heartbeat:Connect(function(dt)
-	if not enabled then return end
-
-	local char = LocalPlayer.Character
-	if not (char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid")) then return end
-
-	local humanoid = char:FindFirstChild("Humanoid")
-	local target = getNearestTarget()
-	if not target then return end
-
-	local hrp = char.HumanoidRootPart
-	local targetPos = target.HumanoidRootPart.Position
-	local dist = (hrp.Position - targetPos).Magnitude
-
-	-- SpeedRun tăng tốc
-	humanoid.WalkSpeed = speedRun and 60 or 16
-
-	if dist > radius + 2 then
-		-- Chạy bộ tới mục tiêu
-		movingToTarget = true
-		humanoid:MoveTo(targetPos)
-	else
-		-- Đã tới gần → chạy vòng tròn
-		movingToTarget = false
-		angle = angle + dt * speed
-		local offset = Vector3.new(math.cos(angle), 0, math.sin(angle)) * radius
-		local movePos = Vector3.new(targetPos.X + offset.X, hrp.Position.Y, targetPos.Z + offset.Z)
-
-		humanoid:MoveTo(movePos)
-
-		-- Hướng về mục tiêu
-		local lookAt = (Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z) - hrp.Position).Unit
-		hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + lookAt)
-
-		-- Đánh
-		attack(target)
-	end
-end)
-
--- Bật / Tắt Farm
-toggleBtn.MouseButton1Click:Connect(function()
-	enabled = not enabled
-	if enabled then
-		toggleBtn.Text = "Tắt Farm"
-		toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-		radius = tonumber(radiusBox.Text) or 24
-		speed = tonumber(speedBox.Text) or 3
-	else
-		toggleBtn.Text = "Bật Farm"
-		toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-		LocalPlayer.Character:FindFirstChild("Humanoid").WalkSpeed = 16
-	end
-end)
-
--- Bật / Tắt SpeedRun
-speedRunBtn.MouseButton1Click:Connect(function()
-	speedRun = not speedRun
-	if speedRun then
-		speedRunBtn.Text = "Tắt SpeedRun"
-		speedRunBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-	else
-		speedRunBtn.Text = "Bật SpeedRun"
-		speedRunBtn.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
-	end
-end)
